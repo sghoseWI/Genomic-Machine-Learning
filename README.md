@@ -1,6 +1,6 @@
 # genomic-data-science
 
-# Classifying Normal Samples and Tumors Samples from RNAseq profiles and Classifying Types of Tumors from RNAseq profiles
+### Classifying Normal Samples and Tumors Samples from RNAseq profiles and Classifying Types of Tumors from RNAseq profiles
 
 Used 5-fold cross validation and display the confusion matrix, f1 scores and other evaluation metrics in addition to the accuracy achieved.
 
@@ -14,7 +14,7 @@ There are two other files in that directory which map Ensembl IDs to Gene Symbol
 
 
 
-# Normal and Tumor Match Pair Analysis
+### Normal and Tumor Match Pair Analysis
 
 a.	Using SciKit Learn build a machine learning classifier that takes RNAseq profiles from matched normal tumor pairs and classifies the sample as Normal or Tumor. Compare the nt.coding.csv vs the nt.all.csv.
 
@@ -27,7 +27,7 @@ d.	Using Keras, build a deep learning classifier that performs the same classifi
 e.	Use the TPOT autoML system to search for a better solution to part a.
 
 
-# Cancer Type Classifier for 18 Common Tumor Types.
+### Cancer Type Classifier for 18 Common Tumor Types.
 
 a.	Using SciKit Learn build a machine learning classifier that classifies Cancer Type from the type.coding.csv and type.all.csv files.  Compare the coding vs all genes cases.
 
