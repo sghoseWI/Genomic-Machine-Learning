@@ -29,6 +29,9 @@ from sklearn.metrics import recall_score
 from sklearn.model_selection import KFold
 from sklearn.metrics import roc_curve, auc, classification_report, confusion_matrix
 import sys
+import keras
+import keras.utils
+from keras import utils as np_utils
 from keras.models import Sequential
 from keras.layers import Dense, Dropout
 import ml_functions as mlf
@@ -404,53 +407,57 @@ def run_deep_learning_loop(features, label):
         print(keras_scores_nt_coding)
         plot_history(history_nt_coding)
 
+def run_deep_learning_loop_one_hot(features, label):
+    kf = KFold(n_splits=5)
+    keras_scores_nt_coding = []
+
+    for train_index, test_index in kf.split(features):
+    #         print("TRAIN:", train_index, "TEST:", test_index)
+        X_train, X_test = features.loc[train_index], features.loc[test_index]
+        y_train, y_test = label.loc[train_index], label.loc[test_index]
+
+        scaler_x = preprocessing.StandardScaler().fit(X_train)  #Regularize feature data
+        X_train = scaler_x.transform(X_train)
+        X_test = scaler_x.transform(X_test)
+
+        model = Sequential()
+        model.add(Dense(32, activation='relu', input_dim=X_train.shape[1]))
+        model.add(Dense(19, activation='softmax'))
+        model.compile(optimizer='rmsprop',
+          loss='categorical_crossentropy',
+          metrics=['accuracy'])
+
+        # One-hot encoding
+        one_hot_labels_y_train = keras.utils.to_categorical(y_train, num_classes=19)
+        one_hot_labels_y_test = keras.utils.to_categorical(y_test, num_classes=19)
+
+        history_nt_coding = model.fit(X_train, one_hot_labels_y_train, epochs=10, batch_size=32)
+        score = model.evaluate(X_test, one_hot_labels_y_test, batch_size=32)
+        print("%s: %.2f%%" % (model.metrics_names[1], score[1]*100))
+        keras_scores_nt_coding.append(score[1] * 100)
+        print(keras_scores_nt_coding)
+        plot_history(history_nt_coding)
+
 def clf_loop2(models_to_run, clfs, grid, X_train, X_test, y_train, y_test):
     """Runs the loop using models_to_run, clfs, gridm and the data
     """
-    results_df =  pd.DataFrame(columns=('Model Type','Classifier', 'Parameters','Baseline', 'Precision at 1','Precision at 2','Precision at 5', 'Precision at 10', 'Precision at 20','Precision at 30','Precision at 50','Recall at 1','Recall at 2','Recall at 5','Recall at 10','Recall at 20','Recall at 30','Recall at 50','F1 at 1','F1 at 2','F1 at 5','F1 at 10','F1 at 20','F1 at 30','F1 at 50', 'Confusion_Matrix'))
+    results_df =  pd.DataFrame(columns=('Model Type','Accuracy','Confusion_Matrix'))
 
-    for n in range(1, 2):
-        # create training and valdation sets
-        for index,clf in enumerate([clfs[x] for x in models_to_run]):
-            print(models_to_run[index])
-            parameter_values = grid[models_to_run[index]]
-            for p in ParameterGrid(parameter_values):
-                try:
-                    clf.set_params(**p)
-                    y_pred_probs = clf.fit(X_train, y_train).predict_proba(X_test)[:,1]
-                    # you can also store the model, feature importances, and prediction scores
-                    # we're only storing the metrics for now
-                    y_pred_probs_sorted, y_test_sorted = zip(*sorted(zip(y_pred_probs, y_test), reverse=True))
-                    y_pred = clf.predict(X_test)
-                    results_df.loc[len(results_df)] = [models_to_run[index],clf, p,
-                                                       precision_at_k(y_test_sorted,y_pred_probs_sorted,100.0),
-                                                       precision_at_k(y_test_sorted,y_pred_probs_sorted,1.0),
-                                                       precision_at_k(y_test_sorted,y_pred_probs_sorted,2.0),
-                                                       precision_at_k(y_test_sorted,y_pred_probs_sorted,5.0),
-                                                       precision_at_k(y_test_sorted,y_pred_probs_sorted,10.0),
-                                                       precision_at_k(y_test_sorted,y_pred_probs_sorted,20.0),
-                                                       precision_at_k(y_test_sorted,y_pred_probs_sorted,30.0),
-                                                       precision_at_k(y_test_sorted,y_pred_probs_sorted,50.0),
-                                                       recall_at_k(y_test_sorted,y_pred_probs_sorted, 1.0),
-                                                       recall_at_k(y_test_sorted,y_pred_probs_sorted, 2.0),
-                                                       recall_at_k(y_test_sorted,y_pred_probs_sorted, 5.0),
-                                                       recall_at_k(y_test_sorted,y_pred_probs_sorted, 10.0),
-                                                       recall_at_k(y_test_sorted,y_pred_probs_sorted, 20.0),
-                                                       recall_at_k(y_test_sorted,y_pred_probs_sorted, 30.0),
-                                                       recall_at_k(y_test_sorted,y_pred_probs_sorted, 50.0),
-                                                       2*(precision_at_k(y_test_sorted,y_pred_probs_sorted,1.0)*recall_at_k(y_test_sorted,y_pred_probs_sorted, 1.0))/(precision_at_k(y_test_sorted,y_pred_probs_sorted,1.0) + recall_at_k(y_test_sorted,y_pred_probs_sorted, 1.0)),
-                                                       2*(precision_at_k(y_test_sorted,y_pred_probs_sorted,2.0)*recall_at_k(y_test_sorted,y_pred_probs_sorted, 2.0))/(precision_at_k(y_test_sorted,y_pred_probs_sorted,2.0) + recall_at_k(y_test_sorted,y_pred_probs_sorted, 2.0)),
-                                                      2*(precision_at_k(y_test_sorted,y_pred_probs_sorted,5.0)*recall_at_k(y_test_sorted,y_pred_probs_sorted, 5.0))/(precision_at_k(y_test_sorted,y_pred_probs_sorted,5.0) + recall_at_k(y_test_sorted,y_pred_probs_sorted, 5.0)),
-                                                      2*(precision_at_k(y_test_sorted,y_pred_probs_sorted,10.0)*recall_at_k(y_test_sorted,y_pred_probs_sorted, 10.0))/(precision_at_k(y_test_sorted,y_pred_probs_sorted,10.0) + recall_at_k(y_test_sorted,y_pred_probs_sorted, 10.0)),
-                                                      2*(precision_at_k(y_test_sorted,y_pred_probs_sorted,20.0)*recall_at_k(y_test_sorted,y_pred_probs_sorted, 20.0))/(precision_at_k(y_test_sorted,y_pred_probs_sorted,20.0) + recall_at_k(y_test_sorted,y_pred_probs_sorted, 20.0)),
-                                                      2*(precision_at_k(y_test_sorted,y_pred_probs_sorted,30.0)*recall_at_k(y_test_sorted,y_pred_probs_sorted, 30.0))/(precision_at_k(y_test_sorted,y_pred_probs_sorted,30.0) + recall_at_k(y_test_sorted,y_pred_probs_sorted, 30.0)),
-                                                      2*(precision_at_k(y_test_sorted,y_pred_probs_sorted,50.0)*recall_at_k(y_test_sorted,y_pred_probs_sorted, 50.0))/(precision_at_k(y_test_sorted,y_pred_probs_sorted,50.0) + recall_at_k(y_test_sorted,y_pred_probs_sorted, 50.0)),
-                                                      confusion_matrix(y_test, y_pred)]
-                    if NOTEBOOK == 1:
-                        plot_precision_recall_n(y_test,y_pred_probs,clf)
-                except IndexError as e:
-                    print('Error:',e)
-                    continue
+    for index,clf in enumerate([clfs[x] for x in models_to_run]):
+        print(models_to_run[index])
+        parameter_values = grid[models_to_run[index]]
+        for p in ParameterGrid(parameter_values):
+            try:
+                clf.set_params(**p)
+                clf.fit(X_train, y_train)
+                y_pred = clf.predict(X_test)
+                y_pred_probs = list(clf.predict_proba(X_test)[:,1])
+                results_df.loc[len(results_df)] = [models_to_run[index] + str(p),
+                                                   accuracy_score(y_test,y_pred),
+                                                   confusion_matrix(y_test, y_pred)]
+            except IndexError as e:
+                print('Error:',e)
+                continue
     return results_df
 
 def run_simple_loop2(features, label, models_to_run):
@@ -458,10 +465,10 @@ def run_simple_loop2(features, label, models_to_run):
     kf = KFold(n_splits=5)
     for train_index, test_index in kf.split(features):
 #         print("TRAIN:", train_index, "TEST:", test_index)
-        X_train, X_test = features[train_index], features[test_index]
-        y_train, y_test = label[train_index], label[test_index]
+        X_train, X_test = features.loc[train_index], features.loc[test_index]
+        y_train, y_test = label.loc[train_index], label.loc[test_index]
 
-        scaler_x = preprocessing.StandardScaler().fit(X_train)  #Regularize feature data
+        scaler_x = preprocessing.StandardScaler().fit(X_train)
         X_train = scaler_x.transform(X_train)
         X_test = scaler_x.transform(X_test)
 
@@ -469,12 +476,5 @@ def run_simple_loop2(features, label, models_to_run):
         grid_size = 'small'
         clfs, grid = define_clfs_params(grid_size)
 
-        # define models to run
-    #     models_to_run=['RF','DT','KNN', 'ET', 'AB', 'GB', 'LR', 'NB']
-    #     models_to_run=['RF','DT', 'LR', 'NB']
-#         models_to_run=['LR','NB','RF']
-
-
-        # call clf_loop and store results in results_df
-        results_df = clf_loop(models_to_run, clfs, grid, X_test, X_train, y_test, y_train)
+        results_df = clf_loop2(models_to_run, clfs, grid, X_test, X_train, y_test, y_train)
         display(results_df)
